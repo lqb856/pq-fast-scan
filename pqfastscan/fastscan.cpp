@@ -252,12 +252,14 @@ static inline void fast_scan_1(const std::uint8_t* partition, const unsigned* la
 		ft4_group[3] = ft4[3][hdr->values[3] >> 4];
 		// Scan SIMD Blocks
 		while (simd_block_count--) {
+			// low_bits_mask to get lower 4-bit pq codes
 			const __m128i low_bits_mask = _mm_set_epi64x(0x0f0f0f0f0f0f0f0f,
 					0x0f0f0f0f0f0f0f0f);
 
 			// Component 0
 			const __m128i comps_0 = _mm_loadu_si128(
 					reinterpret_cast<const __m128i *>(partition));
+			// _mm_and_si128(comps_0, low_bits_mask) re-encode pq codes to 0-15
 			const __m128i masked_comps_0 = _mm_and_si128(comps_0, low_bits_mask);
 			__m128i candidates = _mm_shuffle_epi8(min4[0], masked_comps_0);
 			// Components 1..3
@@ -384,6 +386,7 @@ static inline void fast_scan_1(const std::uint8_t* partition, const unsigned* la
 void scan_partition_1(const std::uint8_t* partition, const unsigned* labels,
 		const float* dists, binheap* bh) {
 	// 0. Scan first keep pqcodes
+	// This is to pre-fill the heap, for later pruning.
 	const std::uint32_t keep = *reinterpret_cast<const std::uint32_t*>(partition);
 	partition += sizeof(keep);
 	float qmax = begin_scan(partition, labels, dists, keep, bh);
